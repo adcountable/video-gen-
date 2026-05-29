@@ -13,6 +13,7 @@ Setup:
 
 import os
 import pickle
+from typing import Optional
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
@@ -51,7 +52,7 @@ def upload_video(
     tags: list[str],
     category_id: str,
     channel_slug: str,
-    thumbnail_path: str | None = None,
+    thumbnail_path: Optional[str] = None,
 ) -> str:
     """
     Upload video_path to YouTube. Returns the YouTube video ID.
