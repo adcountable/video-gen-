@@ -29,9 +29,9 @@ def run(channel_module, channel_slug: str, dry_run: bool = False):
     print(f"Title:   {config['title']}")
     print(f"{'='*60}\n")
 
-    # 1. Generate music
-    audio_url = generate_track(config["music_prompt"])
-    download_audio(audio_url, audio_path)
+    # 1. Generate music (5-min clip, looped to 1hr in build_video)
+    audio_url_or_path = generate_track(config["music_prompt"])
+    download_audio(audio_url_or_path, audio_path)
 
     # 2. Generate artwork
     generate_artwork(config["art_prompt"], art_path)
