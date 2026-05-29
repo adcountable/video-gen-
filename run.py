@@ -3,36 +3,56 @@
 YouTube Music Bot — entry point.
 
 Usage:
-  python run.py work              # upload one work music video
-  python run.py sleep             # upload one sleep music video
-  python run.py work --dry-run    # build video locally, skip upload
-  python run.py sleep --count 3   # upload 3 sleep music videos
+  python3 run.py <channel>              # upload one video
+  python3 run.py <channel> --dry-run   # build locally, skip upload
+  python3 run.py <channel> --count 3   # upload 3 videos
+  python3 run.py --list                 # show all 25 channels
+
+Examples:
+  python3 run.py deep-sleep --dry-run
+  python3 run.py lofi-study --count 3
+  python3 run.py japanese-lofi
 """
 
 import argparse
-import channels.work_music as work_music
-import channels.sleep_music as sleep_music
+from channels.registry import ALL_CHANNELS
 from pipeline.orchestrator import run
-
-CHANNELS = {
-    "work": (work_music, "work"),
-    "sleep": (sleep_music, "sleep"),
-}
 
 
 def main():
     parser = argparse.ArgumentParser(description="Generate and upload YouTube music videos")
-    parser.add_argument("channel", choices=["work", "sleep"], help="Which channel to upload to")
+    parser.add_argument("channel", nargs="?", choices=list(ALL_CHANNELS.keys()),
+                        help="Channel slug to upload to")
     parser.add_argument("--dry-run", action="store_true", help="Build video but skip upload")
-    parser.add_argument("--count", type=int, default=1, help="Number of videos to produce (default: 1)")
+    parser.add_argument("--count", type=int, default=1, help="Number of videos to produce")
+    parser.add_argument("--list", action="store_true", help="List all available channels")
     args = parser.parse_args()
 
-    module, slug = CHANNELS[args.channel]
+    if args.list or not args.channel:
+        print("\nAvailable channels (25 total):\n")
+        groups = {
+            "Sleep": ["deep-sleep", "baby-sleep", "sleep-meditation", "rain-sleep",
+                      "432hz-sleep", "binaural-sleep"],
+            "Focus": ["lofi-study", "deep-work-jazz", "coding-music", "coffee-shop-beats",
+                      "classical-study", "piano-focus"],
+            "Relax": ["spa-music", "yoga-flow", "anxiety-relief", "nature-sounds",
+                      "meditation", "reiki-healing"],
+            "Mood":  ["happy-morning", "sad-rainy-day", "romantic-jazz", "christmas-ambient",
+                      "worship-instrumental", "african-meditation", "japanese-lofi"],
+        }
+        for group, slugs in groups.items():
+            print(f"  {group}:")
+            for slug in slugs:
+                print(f"    {slug:30s}  {ALL_CHANNELS[slug].name}")
+            print()
+        return
+
+    channel = ALL_CHANNELS[args.channel]
 
     for i in range(args.count):
         if args.count > 1:
             print(f"\n>>> Video {i + 1} of {args.count}")
-        run(module, slug, dry_run=args.dry_run)
+        run(channel, dry_run=args.dry_run)
 
 
 if __name__ == "__main__":
