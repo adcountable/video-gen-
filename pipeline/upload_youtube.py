@@ -13,7 +13,7 @@ Setup:
 
 import os
 import pickle
-from typing import Optional
+from typing import List, Optional
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
@@ -49,7 +49,7 @@ def upload_video(
     video_path: str,
     title: str,
     description: str,
-    tags: list[str],
+    tags: List[str],
     category_id: str,
     channel_slug: str,
     thumbnail_path: Optional[str] = None,
