@@ -6,3 +6,4 @@ requests>=2.31.0
 python-dotenv>=1.0.0
 tqdm>=4.66.0
 imageio-ffmpeg>=0.4.9
+replicate>=0.25.0
