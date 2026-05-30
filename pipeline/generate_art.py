@@ -1,34 +1,45 @@
-"""DALL-E 3 artwork generation via OpenAI API."""
+"""
+Artwork generation via Replicate — FLUX 1.1 Pro.
 
+Uses the same Replicate account as music generation.
+No OpenAI account needed.
+
+Cost: ~$0.04/image vs $0.08 for DALL-E 3 HD
+Quality: excellent — FLUX produces better images than SDXL
+"""
+
+import os
 import requests
-from openai import OpenAI
+import replicate
 
 
 def generate_artwork(prompt: str, dest_path: str) -> str:
     """
-    Generate a 1792x1024 image with DALL-E 3 and save it to dest_path.
+    Generate a 16:9 image with FLUX 1.1 Pro and save to dest_path.
     Returns dest_path.
     """
-    from config import OPENAI_API_KEY
-    client = OpenAI(api_key=OPENAI_API_KEY)
+    from config import REPLICATE_API_KEY
+    os.environ["REPLICATE_API_TOKEN"] = REPLICATE_API_KEY
 
-    print(f"  [dalle] Generating artwork: {prompt[:60]}...")
+    print(f"  [flux] Generating artwork: {prompt[:60]}...")
 
-    response = client.images.generate(
-        model="dall-e-3",
-        prompt=prompt,
-        size="1792x1024",
-        quality="hd",
-        n=1,
-        response_format="url",
+    output = replicate.run(
+        "black-forest-labs/flux-1.1-pro",
+        input={
+            "prompt": prompt,
+            "aspect_ratio": "16:9",
+            "output_format": "jpg",
+            "output_quality": 90,
+            "safety_tolerance": 2,
+        },
     )
 
-    image_url = response.data[0].url
-    print(f"  [dalle] Artwork generated — downloading...")
+    image_url = str(output)
+    print(f"  [flux] Artwork generated — downloading...")
 
     img_data = requests.get(image_url, timeout=30).content
     with open(dest_path, "wb") as f:
         f.write(img_data)
 
-    print(f"  [dalle] Artwork saved → {dest_path}")
+    print(f"  [flux] Artwork saved → {dest_path}")
     return dest_path

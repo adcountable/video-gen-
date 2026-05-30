@@ -10,10 +10,8 @@ def _require(key: str) -> str:
         raise EnvironmentError(f"Missing required env var: {key}  (add it to .env)")
     return val
 
-def get_openai_key():     return _require("OPENAI_API_KEY")
 def get_replicate_key():  return _require("REPLICATE_API_KEY")
 
-OPENAI_API_KEY   = os.environ.get("OPENAI_API_KEY", "")
 REPLICATE_API_KEY = os.environ.get("REPLICATE_API_KEY", "")
 
 YOUTUBE_CLIENT_SECRET_FILE = os.getenv("YOUTUBE_CLIENT_SECRET_FILE", "client_secret.json")
