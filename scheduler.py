@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
 """
-Daily scheduler — uploads today's channels automatically.
-
-10 channels × 3 uploads/week = 30 videos/week (~$66/mo API costs)
+Daily scheduler — 25 channels × 3 uploads/week = 75 videos/week
 
 Run manually:    python3 scheduler.py
-Run dry-run:     python3 scheduler.py --dry-run
+Dry run:         python3 scheduler.py --dry-run
 Check schedule:  python3 scheduler.py --show-schedule
 Override day:    python3 scheduler.py --day 0   (0=Mon…6=Sun)
 """
@@ -16,49 +14,71 @@ import sys
 from channels.registry import ALL_CHANNELS
 from pipeline.orchestrator import run
 
-# ── Active channels (top 10 by search volume) ─────────────────────────────────
-
-ACTIVE_CHANNELS = [
-    "deep-sleep",        # Sleep — biggest niche on YouTube
-    "lofi-study",        # Focus — massive lo-fi audience
-    "rain-sleep",        # Sleep — rain sounds, evergreen
-    "baby-sleep",        # Sleep — high-intent parents audience
-    "coding-music",      # Focus — tech audience, high engagement
-    "coffee-shop-beats", # Focus — WFH/study crowd
-    "meditation",        # Relax — evergreen, broad appeal
-    "nature-sounds",     # Relax — sleep + focus crossover
-    "piano-focus",       # Focus — clean, low competition
-    "japanese-lofi",     # Mood — trending aesthetic, passionate fans
-]
-
-# ── 3x/week schedule (each channel appears exactly 3 times) ───────────────────
-# 30 uploads/week spread 4-5 per day across 7 days
+# ── 3x/week schedule — 25 channels × 3 = 75 uploads/week ─────────────────────
+# Each channel appears exactly 3 times. ~10–11 uploads per day.
+#
+# Verified counts per channel:
+#   deep-sleep, lofi-study, happy-morning     → Mon, Wed, Fri
+#   baby-sleep, coffee-shop-beats, worship     → Mon, Thu, Sat
+#   sleep-meditation, coding-music, yoga-flow  → Tue, Thu, Sun
+#   rain-sleep, spa-music                      → Mon, Wed, Sat
+#   432hz-sleep                                → Tue, Fri, Sun
+#   binaural-sleep, classical-study, romantic  → Wed, Fri, Sun
+#   deep-work-jazz, sad-rainy-day, christmas   → Tue, Thu, Sat
+#   piano-focus, reiki-healing                 → Tue, Fri, Sat
+#   nature-sounds                              → Wed, Fri, Sat
+#   anxiety-relief, japanese-lofi              → Mon, Thu, Sun
+#   meditation                                 → Mon, Fri, Sun
+#   african-meditation                         → Tue, Wed, Sun
 
 DAILY_ROTATION = {
-    0: ["deep-sleep",        "lofi-study",        "rain-sleep",   "nature-sounds"],  # Mon (4)
-    1: ["baby-sleep",        "coding-music",      "coffee-shop-beats", "piano-focus"], # Tue (4)
-    2: ["deep-sleep",        "lofi-study",        "meditation",   "japanese-lofi"],  # Wed (4)
-    3: ["rain-sleep",        "baby-sleep",        "coding-music", "nature-sounds"],  # Thu (4)
-    4: ["deep-sleep",        "coffee-shop-beats", "meditation",   "piano-focus", "japanese-lofi"], # Fri (5)
-    5: ["lofi-study",        "rain-sleep",        "nature-sounds","piano-focus"],    # Sat (4)
-    6: ["baby-sleep",        "coding-music",      "coffee-shop-beats", "meditation", "japanese-lofi"], # Sun (5)
+    0: [  # Monday (11)
+        "deep-sleep", "baby-sleep", "rain-sleep",
+        "lofi-study", "coffee-shop-beats", "spa-music",
+        "anxiety-relief", "meditation", "happy-morning",
+        "worship-instrumental", "japanese-lofi",
+    ],
+    1: [  # Tuesday (10)
+        "sleep-meditation", "432hz-sleep",
+        "deep-work-jazz", "coding-music", "piano-focus",
+        "yoga-flow", "reiki-healing",
+        "sad-rainy-day", "christmas-ambient", "african-meditation",
+    ],
+    2: [  # Wednesday (10)
+        "deep-sleep", "rain-sleep", "binaural-sleep",
+        "lofi-study", "classical-study", "spa-music",
+        "nature-sounds", "happy-morning",
+        "romantic-jazz", "african-meditation",
+    ],
+    3: [  # Thursday (11)
+        "baby-sleep", "sleep-meditation",
+        "deep-work-jazz", "coding-music", "coffee-shop-beats",
+        "yoga-flow", "anxiety-relief",
+        "sad-rainy-day", "christmas-ambient",
+        "worship-instrumental", "japanese-lofi",
+    ],
+    4: [  # Friday (11)
+        "deep-sleep", "432hz-sleep", "binaural-sleep",
+        "lofi-study", "piano-focus", "classical-study",
+        "nature-sounds", "reiki-healing", "meditation",
+        "happy-morning", "romantic-jazz",
+    ],
+    5: [  # Saturday (11)
+        "baby-sleep", "rain-sleep",
+        "deep-work-jazz", "coffee-shop-beats", "piano-focus",
+        "spa-music", "nature-sounds", "reiki-healing",
+        "sad-rainy-day", "christmas-ambient", "worship-instrumental",
+    ],
+    6: [  # Sunday (11)
+        "sleep-meditation", "432hz-sleep", "binaural-sleep",
+        "coding-music", "classical-study",
+        "yoga-flow", "anxiety-relief", "meditation",
+        "romantic-jazz", "african-meditation", "japanese-lofi",
+    ],
 }
-
-# Verify: each channel appears exactly 3 times across the week
-# deep-sleep:        Mon, Wed, Fri = 3 ✓
-# lofi-study:        Mon, Wed, Sat = 3 ✓
-# rain-sleep:        Mon, Thu, Sat = 3 ✓
-# baby-sleep:        Tue, Thu, Sun = 3 ✓
-# coding-music:      Tue, Thu, Sun = 3 ✓
-# coffee-shop-beats: Tue, Fri, Sun = 3 ✓
-# meditation:        Wed, Fri, Sun = 3 ✓
-# nature-sounds:     Mon, Thu, Sat = 3 ✓
-# piano-focus:       Tue, Fri, Sat = 3 ✓
-# japanese-lofi:     Wed, Fri, Sun = 3 ✓
 
 
 def get_todays_channels(weekday: int = None) -> list:
-    """Return channel slugs scheduled for the given weekday (0=Mon…6=Sun)."""
     if weekday is None:
         weekday = datetime.datetime.now().weekday()
     return list(DAILY_ROTATION.get(weekday, []))
@@ -67,15 +87,15 @@ def get_todays_channels(weekday: int = None) -> list:
 def show_schedule():
     day_names = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
     total = 0
-    print("\nWeekly schedule — 10 channels × 3x/week:\n")
+    print("\nWeekly schedule — 25 channels × 3x/week:\n")
     for d in range(7):
         channels = get_todays_channels(d)
         total += len(channels)
-        print(f"  {day_names[d]:12s} ({len(channels)})  {', '.join(channels)}")
+        print(f"  {day_names[d]:12s} ({len(channels):2d})  {', '.join(channels)}")
     print(f"\n  Total uploads/week : {total}")
     print(f"  API cost/week      : ~${total * 0.55:.0f}")
     print(f"  API cost/month     : ~${total * 0.55 * 4:.0f}")
-    print(f"  Revenue target     : $8–15k/mo (after 6–12 months)\n")
+    print(f"  Revenue target     : $15–25k/mo (after 12–18 months)\n")
 
 
 def main():
@@ -108,8 +128,7 @@ def main():
             failed.append(slug)
 
     print(f"\n{'='*60}")
-    success = len(channels) - len(failed)
-    print(f"  {success}/{len(channels)} uploaded successfully")
+    print(f"  {len(channels) - len(failed)}/{len(channels)} uploaded successfully")
     if failed:
         print(f"  Failed: {', '.join(failed)}")
     print(f"{'='*60}\n")
