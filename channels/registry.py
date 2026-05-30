@@ -47,6 +47,7 @@ DEEP_SLEEP = Channel(
     tags=["deep sleep", "sleep music", "fall asleep fast", "ambient music", "insomnia relief",
           "delta waves", "relaxing music", "sleep aid", "calm music", "no lyrics"],
     chapters=["🌙 drift", "💤 settle", "🌊 deep rest", "✨ gone"],
+    music_generator="sleep",
 )
 
 BABY_SLEEP = Channel(
@@ -77,6 +78,7 @@ BABY_SLEEP = Channel(
     tags=["baby sleep music", "lullaby", "newborn sleep", "infant sleep", "toddler sleep",
           "gentle music", "nursery music", "baby lullaby", "sleep baby", "baby calm"],
     chapters=["🌙 lullaby", "🐣 gentle", "💤 drifting", "✨ dreaming"],
+    music_generator="sleep",
 )
 
 SLEEP_MEDITATION = Channel(
@@ -107,6 +109,7 @@ SLEEP_MEDITATION = Channel(
     tags=["sleep meditation", "meditation music", "yoga nidra", "tibetan bowls", "healing music",
           "deep sleep", "relaxation", "theta waves", "mindful sleep", "432hz"],
     chapters=["🧘 arrive", "🌬 breathe", "💫 release", "🌊 rest"],
+    music_generator="sleep",
 )
 
 RAIN_SLEEP = Channel(
@@ -137,6 +140,7 @@ RAIN_SLEEP = Channel(
     tags=["rain sounds", "rain sleep", "sleep music", "rain ambience", "nature sounds",
           "rainy night", "cozy rain", "sleep sounds", "rain and piano", "rain for sleep"],
     chapters=["🌧 falling", "💧 settle", "🌊 deep", "🌙 gone"],
+    music_generator="sleep",
 )
 
 HZ432_SLEEP = Channel(
@@ -167,6 +171,7 @@ HZ432_SLEEP = Channel(
     tags=["432hz", "healing frequency", "sleep music", "solfeggio", "healing sleep",
           "frequency healing", "deep sleep", "432hz music", "432hz sleep", "dna repair"],
     chapters=["🔮 tune", "💫 align", "🌊 heal", "✨ restore"],
+    music_generator="sleep",
 )
 
 BINAURAL_SLEEP = Channel(
@@ -197,6 +202,7 @@ BINAURAL_SLEEP = Channel(
     tags=["binaural beats", "delta waves", "binaural sleep", "brain entrainment", "sleep music",
           "delta wave sleep", "insomnia", "deep sleep", "headphones", "binaural beats sleep"],
     chapters=["🎧 sync", "🧠 calm", "💤 delta", "🌊 deep"],
+    music_generator="sleep",
 )
 
 # ── FOCUS ─────────────────────────────────────────────────────────────────────
@@ -415,6 +421,7 @@ SPA_MUSIC = Channel(
     tags=["spa music", "relaxing music", "massage music", "wellness music", "zen music",
           "ambient music", "meditation music", "spa relaxation", "healing music", "peaceful music"],
     chapters=["🌸 arrive", "💆 unwind", "🌿 release", "✨ restored"],
+    music_generator="sleep",
 )
 
 YOGA_FLOW = Channel(
@@ -445,6 +452,7 @@ YOGA_FLOW = Channel(
     tags=["yoga music", "yoga flow", "vinyasa music", "yin yoga", "meditation music",
           "yoga ambient", "yoga practice music", "flow music", "mindful movement", "yoga soundtrack"],
     chapters=["🌅 ground", "🌬 breathe", "🌊 flow", "🙏 rest"],
+    music_generator="sleep",
 )
 
 ANXIETY_RELIEF = Channel(
@@ -476,6 +484,7 @@ ANXIETY_RELIEF = Channel(
     tags=["anxiety relief", "anxiety music", "stress relief", "calming music", "mental health",
           "relaxing music", "nervous system", "grounding music", "calm music", "panic relief"],
     chapters=["💙 arrive", "🌬 breathe", "🌱 ground", "☀️ safe"],
+    music_generator="sleep",
 )
 
 NATURE_SOUNDS = Channel(
@@ -506,6 +515,7 @@ NATURE_SOUNDS = Channel(
     tags=["nature sounds", "relaxing nature", "forest sounds", "ocean sounds", "bird sounds",
           "rain sounds", "sleep sounds", "nature ambience", "outdoor sounds", "white noise"],
     chapters=["🌿 arrive", "🐦 settle", "🌊 drift", "🌙 rest"],
+    music_generator="sleep",
 )
 
 MEDITATION = Channel(
@@ -536,6 +546,7 @@ MEDITATION = Channel(
     tags=["meditation music", "mindfulness", "zen music", "tibetan bowls", "meditation ambient",
           "inner peace", "mindfulness music", "calming meditation", "spiritual music", "vipassana"],
     chapters=["🧘 arrive", "🌬 settle", "💫 deepen", "🌙 still"],
+    music_generator="sleep",
 )
 
 REIKI_HEALING = Channel(
@@ -566,6 +577,7 @@ REIKI_HEALING = Channel(
     tags=["reiki music", "chakra healing", "healing music", "528hz", "energy healing",
           "chakra music", "crystal bowls", "reiki healing", "chakra balance", "spiritual healing"],
     chapters=["✨ open", "💫 align", "🌊 flow", "🌸 restored"],
+    music_generator="sleep",
 )
 
 # ── MOOD ──────────────────────────────────────────────────────────────────────
@@ -750,6 +762,7 @@ AFRICAN_MEDITATION = Channel(
     tags=["african music", "tribal music", "african meditation", "djembe music", "healing music",
           "world music", "kora music", "african drums", "tribal meditation", "mbira"],
     chapters=["🌍 ground", "🥁 rhythm", "🌿 heal", "🌅 restore"],
+    music_generator="sleep",
 )
 
 JAPANESE_LOFI = Channel(

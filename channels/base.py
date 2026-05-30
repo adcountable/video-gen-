@@ -17,6 +17,7 @@ class Channel:
     chapters: List[str]              # mood names shown as chapter timestamps
     category_id: str = "10"         # YouTube Music category
     video_format: str = "vinyl"      # "vinyl" (spinning record) or "scene" (Leisure Dept-style painting)
+    music_generator: str = "minimax" # "minimax" (MusicGen API $0.15) or "sleep" (free procedural)
 
     def get_random_config(self) -> dict:
         title = random.choice(self.title_templates)
@@ -29,6 +30,7 @@ class Channel:
             "category_id": self.category_id,
             "chapters": self.chapters,
             "video_format": self.video_format,
+            "music_generator": self.music_generator,
         }
 
     def _build_description(self, title: str) -> str:

@@ -7,6 +7,7 @@ from typing import Optional
 from channels.base import Channel
 from config import OUTPUT_DIR
 from pipeline.generate_music import generate_track, download_audio
+from pipeline.generate_sleep_audio import generate_sleep_audio
 from pipeline.generate_art import generate_artwork
 from pipeline.create_video import build_video
 from pipeline.upload_youtube import upload_video
@@ -40,7 +41,11 @@ def run(channel: Channel, dry_run: bool = False, audio_file: Optional[str] = Non
         if not os.path.exists(audio_file):
             raise FileNotFoundError(f"Audio file not found: {audio_file}")
         shutil.copy(audio_file, audio_path)
+    elif config.get("music_generator") == "sleep":
+        # Free procedural generation — brown noise, binaural beats, drones, rain
+        generate_sleep_audio(channel.slug, audio_path)
     else:
+        # MiniMax Music 2.6 — ~$0.15/video
         audio_url_or_path = generate_track(config["music_prompt"])
         download_audio(audio_url_or_path, audio_path)
 
