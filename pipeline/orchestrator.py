@@ -1,4 +1,4 @@
-"""Runs the full pipeline for one video: music → art → video → upload."""
+"""Runs the full pipeline for one video: music → vinyl art → video → upload."""
 
 import os
 import shutil
@@ -16,8 +16,7 @@ def run(channel: Channel, dry_run: bool = False, audio_file: Optional[str] = Non
     """
     Run the full pipeline for a single video on the given channel.
 
-    audio_file: path to a local MP3 (e.g. downloaded from Suno).
-                If provided, skips music generation entirely.
+    audio_file: path to a local MP3 (e.g. from Suno) — skips music generation.
     dry_run:    build video locally but skip the YouTube upload.
     """
     config = channel.get_random_config()
@@ -26,15 +25,16 @@ def run(channel: Channel, dry_run: bool = False, audio_file: Optional[str] = Non
     os.makedirs(out, exist_ok=True)
 
     audio_path = os.path.join(out, "track.mp3")
-    art_path   = os.path.join(out, "artwork.jpg")
+    vinyl_path = os.path.join(out, "vinyl.jpg")
     video_path = os.path.join(out, "video.mp4")
 
     print(f"\n{'='*60}")
     print(f"Channel : {channel.name}  ({channel.slug})")
     print(f"Title   : {config['title']}")
+    print(f"Doodle  : {config['vinyl_doodle'][:50]}")
     print(f"{'='*60}\n")
 
-    # 1. Music — use provided file or generate via Replicate
+    # 1. Music
     if audio_file:
         print(f"  [audio] Using provided file: {audio_file}")
         if not os.path.exists(audio_file):
@@ -44,11 +44,13 @@ def run(channel: Channel, dry_run: bool = False, audio_file: Optional[str] = Non
         audio_url_or_path = generate_track(config["music_prompt"])
         download_audio(audio_url_or_path, audio_path)
 
-    # 2. Generate artwork
-    generate_artwork(config["art_prompt"], art_path)
+    # 2. Artwork (vinyl doodle or scene painting depending on channel format)
+    video_format = config.get("video_format", "vinyl")
+    generate_artwork(config["vinyl_doodle"], vinyl_path, video_format=video_format)
 
-    # 3. Build 1-hour video
-    build_video(audio_path, art_path, video_path)
+    # 3. Build video
+    build_video(audio_path, vinyl_path, video_path,
+                video_format=video_format, channel_name=channel.name)
 
     if dry_run:
         print(f"\n[dry-run] Video saved → {video_path}")
@@ -62,7 +64,7 @@ def run(channel: Channel, dry_run: bool = False, audio_file: Optional[str] = Non
         tags=config["tags"],
         category_id=config["category_id"],
         channel_slug=channel.slug,
-        thumbnail_path=art_path,
+        thumbnail_path=vinyl_path,
     )
 
     print(f"\n✓ Done! https://youtu.be/{video_id}\n")

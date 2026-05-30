@@ -1,14 +1,16 @@
 """
 Music generation via Replicate + Meta MusicGen.
 
-Strategy: generate a 5-minute (300s) clip — ~$0.50/track.
-If Replicate caps the duration, we fall back to stitching
-multiple 30s clips together using FFmpeg crossfade.
+Strategy: generate 4 x 300s clips using audio continuation, giving 20 min of
+unique, seamlessly flowing music. FFmpeg loops that 3x to fill the hour.
+Cost: ~$2/video (4 x $0.50) — sounds like a real mix, not a looped clip.
 
 Get your Replicate API key: https://replicate.com/account/api-tokens
 """
 
 import os
+import math
+import shutil
 import tempfile
 import requests
 import replicate
@@ -16,70 +18,40 @@ from config import REPLICATE_API_KEY, MUSIC_CLIP_SECONDS
 
 # Pin to specific version for reproducibility
 MUSICGEN_VERSION = "671ac645ce5e552cc63a54a2bbff63fcf798043055d2dac5fc9e36a837eedcfb"
-REPLICATE_MAX_DURATION = 300  # seconds — MusicGen large supports up to 300s
+CLIP_DURATION = 300       # seconds per clip — MusicGen large max
+N_CLIPS       = 4         # 4 x 300s = 20 min unique music, looped 3x = 1hr
 
 os.environ["REPLICATE_API_TOKEN"] = REPLICATE_API_KEY
 
 
 def generate_track(prompt: str) -> str:
     """
-    Generate a music clip and return the local MP3 path.
-
-    If MUSIC_CLIP_SECONDS <= 300: single Replicate call (~$0.50 for 5 min).
-    If MUSIC_CLIP_SECONDS > 300: generates multiple 30s clips and stitches them.
+    Generate a seamless ~20-minute music piece via 4 continuation clips.
+    Returns path to a local MP3 stitched from all clips.
     """
-    if MUSIC_CLIP_SECONDS <= REPLICATE_MAX_DURATION:
-        return _generate_single(prompt, MUSIC_CLIP_SECONDS)
-    else:
-        return _generate_stitched(prompt, MUSIC_CLIP_SECONDS)
-
-
-def _generate_single(prompt: str, duration: int) -> str:
-    """Single MusicGen call — returns MP3 download URL."""
-    print(f"  [musicgen] Generating {duration}s track: {prompt[:60]}...")
-
-    output = replicate.run(
-        f"meta/musicgen:{MUSICGEN_VERSION}",
-        input={
-            "prompt": prompt,
-            "duration": duration,
-            "model_version": "large",
-            "output_format": "mp3",
-            "normalization_strategy": "loudness",
-        },
-    )
-
-    url = str(output)
-    print(f"  [musicgen] Track ready ✓")
-    return url
-
-
-def _generate_stitched(prompt: str, total_seconds: int) -> str:
-    """
-    Generate multiple 30s clips and crossfade-stitch them into one file.
-    Used when total_seconds > 300.
-    """
-    import math, subprocess, shutil
-    from pipeline.create_video import get_ffmpeg_binary
-
-    clip_duration = 30
-    n_clips = math.ceil(total_seconds / clip_duration)
-    print(f"  [musicgen] Stitching {n_clips} x {clip_duration}s clips → {total_seconds}s total")
-
     tmp_dir = tempfile.mkdtemp()
     clip_paths = []
 
     try:
-        for i in range(n_clips):
-            print(f"  [musicgen] Clip {i+1}/{n_clips}...")
-            url = _generate_single(prompt, clip_duration)
+        # Clip 1 — free generation
+        print(f"  [musicgen] Clip 1/{N_CLIPS} — generating seed track...")
+        url = _generate_single(prompt, CLIP_DURATION)
+        clip_path = os.path.join(tmp_dir, "clip_01.mp3")
+        _download(url, clip_path)
+        clip_paths.append(clip_path)
+
+        # Clips 2-4 — each continues from the tail of the previous
+        for i in range(2, N_CLIPS + 1):
+            print(f"  [musicgen] Clip {i}/{N_CLIPS} — continuing from previous...")
+            url = _generate_continuation(prompt, clip_paths[-1], CLIP_DURATION)
             clip_path = os.path.join(tmp_dir, f"clip_{i:02d}.mp3")
             _download(url, clip_path)
             clip_paths.append(clip_path)
 
-        # Crossfade-stitch all clips with 2s overlap
-        stitched = os.path.join(tmp_dir, "stitched.mp3")
-        _crossfade_stitch(clip_paths, stitched, fade_sec=2)
+        # Stitch all clips with crossfade
+        print(f"  [musicgen] Stitching {N_CLIPS} clips into seamless mix...")
+        stitched = os.path.join(tmp_dir, "mix.mp3")
+        _crossfade_stitch(clip_paths, stitched, fade_sec=3)
 
         # Move to a stable temp file outside tmp_dir
         final = tempfile.NamedTemporaryFile(suffix=".mp3", delete=False)
@@ -91,24 +63,76 @@ def _generate_stitched(prompt: str, total_seconds: int) -> str:
         shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
-def _crossfade_stitch(clip_paths: list, output: str, fade_sec: int = 2):
-    """Stitch MP3 clips with crossfade using FFmpeg."""
+def download_audio(url_or_path: str, dest_path: str) -> str:
+    """
+    Download URL to dest_path, or move if already a local file.
+    Returns dest_path.
+    """
+    if os.path.exists(url_or_path):
+        shutil.copy(url_or_path, dest_path)
+        os.remove(url_or_path)  # clean up temp file
+    else:
+        _download(url_or_path, dest_path)
+
+    size = os.path.getsize(dest_path) / (1024 * 1024)
+    print(f"  [musicgen] Mix saved ({size:.1f} MB)")
+    return dest_path
+
+
+# ── Private helpers ────────────────────────────────────────────────────────────
+
+def _generate_single(prompt: str, duration: int) -> str:
+    """Single MusicGen call — returns MP3 download URL."""
+    output = replicate.run(
+        f"meta/musicgen:{MUSICGEN_VERSION}",
+        input={
+            "prompt": prompt,
+            "duration": duration,
+            "model_version": "large",
+            "output_format": "mp3",
+            "normalization_strategy": "loudness",
+        },
+    )
+    return str(output)
+
+
+def _generate_continuation(prompt: str, prev_audio_path: str, duration: int) -> str:
+    """
+    Generate a MusicGen clip that seamlessly continues from the tail of prev_audio_path.
+    Uses the last 10s of the previous clip as the seed.
+    """
+    with open(prev_audio_path, "rb") as audio_file:
+        output = replicate.run(
+            f"meta/musicgen:{MUSICGEN_VERSION}",
+            input={
+                "prompt": prompt,
+                "duration": duration,
+                "model_version": "large",
+                "output_format": "mp3",
+                "normalization_strategy": "loudness",
+                "continuation": True,
+                "input_audio": audio_file,
+                "continuation_start": max(0, CLIP_DURATION - 10),  # use last 10s
+            },
+        )
+    return str(output)
+
+
+def _crossfade_stitch(clip_paths: list, output: str, fade_sec: int = 3):
+    """Stitch MP3 clips with crossfade using FFmpeg acrossfade filter."""
     from pipeline.create_video import get_ffmpeg_binary
     import subprocess
 
     if len(clip_paths) == 1:
-        import shutil
         shutil.copy(clip_paths[0], output)
         return
 
-    # Build an ffmpeg filter chain: acrossfade each adjacent pair
-    # For N clips: apply acrossfade N-1 times
     ffmpeg = get_ffmpeg_binary()
     inputs = []
     for p in clip_paths:
         inputs += ["-i", p]
 
-    # Build filter_complex for chained acrossfade
+    # Build chained acrossfade filter
     n = len(clip_paths)
     filters = []
     prev = "0:a"
@@ -120,7 +144,6 @@ def _crossfade_stitch(clip_paths: list, output: str, fade_sec: int = 2):
         prev = f"cf{i}"
 
     filter_str = ";".join(filters)
-
     cmd = [ffmpeg, "-y"] + inputs + [
         "-filter_complex", filter_str,
         "-map", "[out]",
@@ -130,23 +153,6 @@ def _crossfade_stitch(clip_paths: list, output: str, fade_sec: int = 2):
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
         raise RuntimeError(f"crossfade stitch failed:\n{result.stderr[-1000:]}")
-
-
-def download_audio(url_or_path: str, dest_path: str) -> str:
-    """
-    Download URL to dest_path, or copy if already a local file.
-    Returns dest_path.
-    """
-    if os.path.exists(url_or_path):
-        import shutil
-        shutil.copy(url_or_path, dest_path)
-        os.remove(url_or_path)  # clean up the temp file
-    else:
-        _download(url_or_path, dest_path)
-
-    size = os.path.getsize(dest_path) / (1024 * 1024)
-    print(f"  [musicgen] Audio saved ({size:.1f} MB)")
-    return dest_path
 
 
 def _download(url: str, dest: str):
