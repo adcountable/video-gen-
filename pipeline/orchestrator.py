@@ -11,6 +11,7 @@ from pipeline.generate_sleep_audio import generate_sleep_audio
 from pipeline.generate_art import generate_artwork
 from pipeline.create_video import build_video
 from pipeline.upload_youtube import upload_video
+from pipeline.spend_log import log_run
 
 
 def run(channel: Channel, dry_run: bool = False, audio_file: Optional[str] = None):
@@ -57,7 +58,10 @@ def run(channel: Channel, dry_run: bool = False, audio_file: Optional[str] = Non
     build_video(audio_path, vinyl_path, video_path,
                 video_format=video_format, channel_name=channel.name)
 
+    music_gen = config.get("music_generator", "minimax")
+
     if dry_run:
+        log_run(channel.slug, run_id, music_gen, dry_run=True)
         print(f"\n[dry-run] Video saved → {video_path}")
         return None
 
@@ -72,5 +76,6 @@ def run(channel: Channel, dry_run: bool = False, audio_file: Optional[str] = Non
         thumbnail_path=vinyl_path,
     )
 
+    log_run(channel.slug, run_id, music_gen, video_id=video_id)
     print(f"\n✓ Done! https://youtu.be/{video_id}\n")
     return video_id

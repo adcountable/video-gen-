@@ -12,6 +12,7 @@ from datetime import datetime
 from typing import Optional
 
 import streamlit as st
+import pandas as pd
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -32,6 +33,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from channels.registry import ALL_CHANNELS
 from config import OUTPUT_DIR
+from pipeline.spend_log import get_all, get_summary, log_earnings
 
 # ── Sidebar nav ───────────────────────────────────────────────────────────────
 
@@ -41,6 +43,7 @@ st.sidebar.divider()
 
 page = st.sidebar.radio("", [
     "📊 Overview",
+    "💰 Spend vs Earnings",
     "🚀 Launch Video",
     "📺 Output Library",
     "📡 Channels",
@@ -130,6 +133,107 @@ if page == "📊 Overview":
             cols[3].markdown(f"[open]({vp})")
     else:
         st.info("No videos generated yet. Head to 🚀 Launch Video to create your first one.")
+
+
+# ── Spend vs Earnings ─────────────────────────────────────────────────────────
+
+elif page == "💰 Spend vs Earnings":
+    st.title("💰 Spend vs Earnings")
+
+    summary = get_summary()
+    log     = [e for e in get_all() if not e.get("dry_run")]
+
+    profit = summary["total_revenue"] - summary["total_spend"]
+
+    # Top metrics
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Total Spend",    f"${summary['total_spend']:.2f}")
+    c2.metric("Total Earnings", f"${summary['total_revenue']:.2f}")
+    c3.metric("Profit / Loss",  f"${profit:.2f}",
+              delta=f"${profit:.2f}", delta_color="normal")
+    c4.metric("Videos Uploaded", summary["uploaded_count"])
+
+    st.divider()
+
+    # Spend breakdown
+    col_left, col_right = st.columns(2)
+
+    with col_left:
+        st.subheader("Spend breakdown")
+        if summary["total_spend"] > 0:
+            spend_data = pd.DataFrame({
+                "Category": ["Music (MiniMax)", "Art (FLUX)"],
+                "Cost ($)":  [summary["music_spend"], summary["art_spend"]],
+            })
+            st.bar_chart(spend_data.set_index("Category"))
+        else:
+            st.info("No spend logged yet.")
+
+        st.markdown("**Per-channel spend**")
+        channel_spend = {}
+        for e in log:
+            s = e["channel_slug"]
+            channel_spend[s] = channel_spend.get(s, 0) + e["total_cost"]
+        if channel_spend:
+            df = pd.DataFrame(
+                {"Channel": list(channel_spend.keys()),
+                 "Spend ($)": list(channel_spend.values())}
+            ).sort_values("Spend ($)", ascending=False)
+            st.dataframe(df, use_container_width=True, hide_index=True)
+
+    with col_right:
+        st.subheader("Spend vs Earnings over time")
+        if log:
+            df = pd.DataFrame(log)
+            df["date"] = pd.to_datetime(df["timestamp"]).dt.date
+            by_date = df.groupby("date").agg(
+                spend=("total_cost", "sum"),
+                revenue=("revenue_usd", lambda x: x.fillna(0).sum()),
+            ).reset_index()
+            by_date["cumulative_spend"]   = by_date["spend"].cumsum()
+            by_date["cumulative_revenue"] = by_date["revenue"].cumsum()
+            st.line_chart(by_date.set_index("date")[["cumulative_spend", "cumulative_revenue"]])
+        else:
+            st.info("No data yet — run some videos to see the chart.")
+
+    st.divider()
+
+    # Manual earnings entry (until YouTube Analytics API is wired)
+    st.subheader("Log earnings manually")
+    st.caption("Once your channels are monetized, enter earnings here. YouTube Analytics API auto-sync coming soon.")
+
+    uploaded = [e for e in log if e.get("video_id")]
+    if uploaded:
+        with st.form("earnings_form"):
+            vid_options = {
+                f"{e['channel_slug']} — {e['video_id']} ({e['timestamp'][:10]})": e["video_id"]
+                for e in uploaded
+            }
+            selected = st.selectbox("Video", list(vid_options.keys()))
+            rev      = st.number_input("Revenue ($)", min_value=0.0, step=0.01, format="%.2f")
+            views    = st.number_input("Views", min_value=0, step=1)
+            rev_date = st.date_input("Date")
+            if st.form_submit_button("Save"):
+                log_earnings(vid_options[selected], int(views), float(rev), str(rev_date))
+                st.success("Saved!")
+                st.rerun()
+    else:
+        st.info("No uploaded videos yet. Upload a video first, then log earnings here.")
+
+    st.divider()
+
+    # Full log table
+    with st.expander("Full run log"):
+        if log:
+            df = pd.DataFrame(log)[
+                ["timestamp", "channel_slug", "music_generator",
+                 "total_cost", "uploaded", "video_id",
+                 "views", "revenue_usd"]
+            ].fillna({"views": 0, "revenue_usd": 0})
+            df.columns = ["Time", "Channel", "Generator", "Cost", "Uploaded", "Video ID", "Views", "Revenue"]
+            st.dataframe(df, use_container_width=True, hide_index=True)
+        else:
+            st.info("No runs logged yet.")
 
 
 # ── Launch Video ──────────────────────────────────────────────────────────────
